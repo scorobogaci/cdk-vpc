@@ -1,4 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
+import {CfnDeletionPolicy, RemovalPolicy} from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
@@ -6,10 +7,9 @@ export class AppStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
 
-        new ec2.Vpc(this, 'SampleVPC', {
+        const sampleVpc = new ec2.Vpc(this, 'SampleVirtualCloud', {
             vpcName: 'SampleVpc',
             natGateways: 1,
-            maxAzs: 3,
             subnetConfiguration: [
                 {
                     name: 'private-subnet-1',
@@ -17,7 +17,7 @@ export class AppStack extends cdk.Stack {
                     cidrMask: 24,
                 },
                 {
-                    name: 'public-subnet-1',
+                    name: 'app-public-subnet-1',
                     subnetType: ec2.SubnetType.PUBLIC,
                     cidrMask: 24,
                 },
@@ -28,5 +28,17 @@ export class AppStack extends cdk.Stack {
                 },
             ],
         });
+
+
+        for (const subnet of sampleVpc.selectSubnets({subnetType:ec2.SubnetType.PUBLIC}).subnets) {
+            // Have tried to use this construct to delete de resource on update, did not work
+            subnet.applyRemovalPolicy(RemovalPolicy.DESTROY)
+
+            // Have tried this one as well, not working, still CIDR overlap, meaning the subnet is still retained
+            const subnetResource = subnet.node.defaultChild as cdk.CfnResource;
+            subnetResource.cfnOptions.updateReplacePolicy = CfnDeletionPolicy.DELETE
+            subnetResource.cfnOptions.deletionPolicy = CfnDeletionPolicy.DELETE
+        }
     }
+
 }
